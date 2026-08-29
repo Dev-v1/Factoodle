@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "factoodle-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "placement": { "mode": "smart" },
+  "observability": { "enabled": true },
+  "vars": {
+    "FRONTEND_URL": "http://localhost:5173,https://YOUR-PROJECT.vercel.app"
+  }
+}
