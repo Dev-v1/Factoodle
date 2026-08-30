@@ -17,7 +17,12 @@ export function createApi(base: string | undefined, fetcher: typeof fetch = fetc
         ...(document ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(document) } : {}),
       });
       let body;
-      try { body = await response.json(); } catch { throw new ApiError('INVALID_RESPONSE', 'The server returned an unexpected response. Check the backend deployment.', true); }
+      try { body = await response.json(); }
+      catch (error) {
+        if (controller.signal.aborted) throw error; // Preserve timeout classification below.
+        if (response.ok) throw new ApiError('INVALID_RESPONSE', 'The server returned an unexpected response. Check the backend deployment.', true);
+        body = {}; // Gateways may return HTML. Keep the real HTTP failure status.
+      }
       if (!response.ok) {
         const messages: Record<string, string> = {
           DATABASE_NOT_CONFIGURED: 'Online saving is unavailable: Cloudflare needs its DATABASE_URL secret. Your progress is still on this device.',
@@ -28,8 +33,13 @@ export function createApi(base: string | undefined, fetcher: typeof fetch = fetc
           UPDATE_REQUIRED: 'Refresh Factoodle to get the latest saving system.',
         };
         const errorCode = typeof body?.code === 'string' ? body.code : `HTTP_${response.status}`;
+        const needsAction = ['DATABASE_NOT_CONFIGURED', 'DATABASE_AUTH_FAILED', 'DATABASE_SCHEMA_MISSING',
+          'CODE_NOT_FOUND', 'SYNC_CONFLICT', 'UPDATE_REQUIRED', 'ORIGIN_NOT_ALLOWED', 'INVALID_CODE',
+          'INVALID_PROGRESS', 'BODY_TOO_LARGE', 'UNSUPPORTED_MEDIA_TYPE', 'METHOD_NOT_ALLOWED', 'NOT_FOUND'].includes(errorCode);
+        const retryable = !needsAction && (body?.retryable === true || response.status === 408 ||
+          response.status === 429 || response.status >= 500);
         throw new ApiError(errorCode, messages[errorCode] ?? `Online saving failed (${response.status}). Your local progress is preserved. Try Save now.`,
-          body?.retryable === true || response.status === 429);
+          retryable);
       }
       try { return parseDocument(body.document); }
       catch { throw new ApiError('INVALID_RESPONSE', 'The server sent invalid progress. Your local copy is preserved.', true); }

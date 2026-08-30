@@ -39,7 +39,7 @@ export class SyncEngine {
   }
   sync = (code = this.state.code): Promise<void> => {
     if (!code || this.stopped) return Promise.resolve();
-    clearTimeout(this.timer);
+    if (this.state.code === code) clearTimeout(this.timer);
     const existing = this.running.get(code);
     if (existing) { this.requested.add(code); return existing; }
     const work = (async () => {
@@ -59,13 +59,18 @@ export class SyncEngine {
       // Drain changes made during a slow request; requests are serialized, never cancelled by answers.
       for (let round = 0; round < 8; round++) {
         const sent = this.store.read(code);
+        // Local changes from another tab must remain visible even if uploading fails.
+        if (this.state.code === code) this.set({ document: sent });
         const remote = await this.api.put(code, sent);
         await mergeIntoStore(this.store, code, remote);
         // Another tab may have written after the lock was released.
         const merged = this.store.read(code);
         const complete = JSON.stringify(merged) === JSON.stringify(remote);
         if (this.state.code === code) this.set({ document: merged, state: complete ? 'saved' : 'saving', message: '' });
-        if (complete) { this.attempts = 0; return; }
+        if (complete) {
+          if (this.state.code === code) { clearTimeout(this.timer); this.attempts = 0; }
+          return;
+        }
       }
       this.retry(code, 500);
     } catch (err) {
@@ -75,7 +80,10 @@ export class SyncEngine {
     }
   }
   private retry(code: string, delay: number) {
-    if (!this.stopped && this.state.code === code) this.timer = setTimeout(() => { void this.sync(code); }, delay);
+    if (!this.stopped && this.state.code === code) {
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => { void this.sync(code); }, delay);
+    }
   }
   async restore(input: string) {
     const code = normalizeCode(input);

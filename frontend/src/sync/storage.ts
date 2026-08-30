@@ -10,9 +10,9 @@ export interface ProfileStore {
 export function createStore(storage: StorageLike, lock: <T>(name: string, fn: () => T) => Promise<T>): ProfileStore {
   function read(code: string) {
     const v2 = storage.getItem(`factoodle-v2:${code}`);
-    if (v2) return parseDocument(JSON.parse(v2));
+    if (v2 !== null) return parseDocument(JSON.parse(v2));
     const legacy = storage.getItem(`factoodle-progress:${code}`);
-    return legacy ? parseDocument(JSON.parse(legacy)) : emptyDocument();
+    return legacy !== null ? parseDocument(JSON.parse(legacy)) : emptyDocument();
   }
   return {
     active() {

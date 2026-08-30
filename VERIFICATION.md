@@ -36,3 +36,27 @@ The accumulated regression suite was rerun as each pass expanded coverage.
 - After `/ready` succeeds, use the original browser and Shift exactly as described in `DEPLOYMENT.md`.
 
 Tests reduce regression risk; neither six passes nor a successful build can guarantee that no bugs remain.
+
+## Five additional review passes
+
+The follow-up began from commit `dcc16dc356fc9a91ec07d5a1f119f442f12ec380`.
+Each reproduced failure was tested before its fix; the complete regression suite
+was rerun after each production-code patch.
+
+| Pass | Additional coverage and fixes | Accumulated result |
+| --- | --- | --- |
+| 1 | Stable code/device identity, 500 pasted-code round trips, empty corrupt v1/v2 storage. Fixed silent fallback to a fresh document for empty corrupt values. | 72 tests passed. |
+| 2 | Offline multi-tab progress visibility, overlapping restore clicks, connection loss during restore. Fixed stale local totals when another tab saves offline. | 75 tests passed. |
+| 3 | Unmarked HTTP 408/5xx failures, HTML gateway/access-denied responses, response-body timeouts, permanent configuration errors. Fixed retry and timeout classification. | 85 tests passed. |
+| 4 | Eight devices, 24 shuffled/duplicate save orderings, failed profile activation, duplicate timers, retry cancellation across profiles. Fixed timer replacement and profile isolation. | 89 tests passed. |
+| 5 | Real local HTTP requests using production client/handler/repository modules: create code, save through an outage, retry, restore into an isolated store, simultaneous answers, reject unknown code, reload. | All 90 tests passed; frontend build, backend typecheck, and whitespace checks passed. |
+
+The HTTP integration test uses an in-memory SQL transport. It is not a live Neon
+or a real Edge-to-Shift browser test. No production database data, credentials,
+infrastructure resources, or paid plans were changed.
+
+The live `/ready` check still returned HTTP 503 `DATABASE_NOT_CONFIGURED` during
+this follow-up. Cloudflare management tools were not exposed, and plugin discovery
+returned no Cloudflare integration. The production runtime secret still requires
+owner action through the existing Cloudflare dashboard. The app is **not yet
+verified end-to-end in production**. See `DEPLOYMENT.md`, steps 2–5.
