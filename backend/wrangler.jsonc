@@ -8,6 +8,6 @@
   "placement": { "mode": "smart" },
   "observability": { "enabled": true },
   "vars": {
-    "FRONTEND_URL": "http://localhost:5173,https://https://factoodle.vercel.app"
+    "FRONTEND_URL": "http://localhost:5173,https://factoodle.vercel.app"
   }
 }
