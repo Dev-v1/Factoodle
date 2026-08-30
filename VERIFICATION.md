@@ -1,0 +1,38 @@
+# Factoodle 2 verification — 2026-08-30
+
+Story: answer a math question → store it locally → upload through the existing
+Cloudflare API → merge into the existing Neon table → restore on another browser.
+
+## Six implementation and regression passes
+
+The accumulated regression suite was rerun as each pass expanded coverage.
+
+| Pass | Coverage | Result |
+| --- | --- | --- |
+| 1 | All 20 operation/range combinations, 20,040 generated questions, code normalization, invalid input | 23 tests passed. |
+| 2 | Legacy migration, idempotent/ordered merges, browser locks, SQL compare-and-swap races | 34 accumulated tests passed. |
+| 3 | API contract, CORS, request limits, missing configuration/table, errors, client timeout | 50 accumulated tests passed. |
+| 4 | Slow saves, lost responses, reloads, restore failures, late old-profile responses, multi-tab races | 61 accumulated tests passed. |
+| 5 | Client/handler/SQL-repository integration with isolated browser stores; 100 concurrent answers | 65 accumulated tests passed; frontend build and backend typecheck passed. |
+| 6 | Production configuration, credential boundaries, non-destructive schema, complete regression rerun | All 68 accumulated tests passed; frontend production build, backend typecheck, and `git diff --check` passed. |
+
+## Fixes covered by regressions
+
+- Original save errors were swallowed, so missing database configuration looked like a bad recovery code. Errors now remain distinct and visible.
+- Original answer changes aborted saves after a debounce. A serialized queue now drains new changes without canceling an active request.
+- Original aggregate writes could overwrite another browser's totals. Device revisions and database compare-and-swap preserve concurrent updates.
+- Review found a completion-window race in the rewritten queue. Pending sync requests now trigger another drain, and the engine rereads storage after releasing the merge lock.
+- Malformed browser device IDs are now replaced with valid UUIDs.
+- Stale local restore shortcuts, silent corrupt-data deletion, and unconfirmed copied-code messaging were removed.
+
+## Limits and live checks
+
+- Repository concurrency tests execute the real repository logic against an **in-memory SQL transport emulator**, not live Neon.
+- The connected test browser could not open the local preview (`ERR_BLOCKED_BY_CLIENT`). This is not a passing visual/browser test.
+- A local Wrangler dry-run did not complete because its network approval was cancelled. No direct CLI deployment was performed.
+- Before the rebuild, the live Worker returned `Database is not configured`, and the connected Neon table had zero rows. No database rows were changed or deleted during diagnosis.
+- The existing Cloudflare Worker needs its production runtime `DATABASE_URL` secret before a live save/restore can succeed. `/health` must show version 2 and configuration present; `/ready` must return 200.
+- The final GitHub/Vercel/Worker deployment result must be checked after committing; a successful build is not proof of a working database connection.
+- After `/ready` succeeds, use the original browser and Shift exactly as described in `DEPLOYMENT.md`.
+
+Tests reduce regression risk; neither six passes nor a successful build can guarantee that no bugs remain.

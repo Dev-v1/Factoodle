@@ -1,0 +1,11 @@
+{
+  "name": "factoodle",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "engines": { "node": ">=22.18.0" },
+  "scripts": {
+    "test": "node scripts/check-model.mjs && node --test tests/*.test.mjs",
+    "check": "npm test && npm --prefix frontend run build && npm --prefix backend run typecheck"
+  }
+}

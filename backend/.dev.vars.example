@@ -1,0 +1,3 @@
+# Local development only. Replace this in your private .dev.vars file.
+DATABASE_URL="YOUR_COMPLETE_CURRENT_NEON_POOLED_CONNECTION_STRING"
+FRONTEND_URL="http://localhost:5173"

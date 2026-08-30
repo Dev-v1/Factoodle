@@ -1,19 +1,23 @@
-# Factoodle backend
+# Factoodle Worker
 
-This folder is a Cloudflare Worker that stores anonymous progress records in Neon PostgreSQL.
+Keep Worker `factoodle-api` and production entrypoint `src/index.ts`. The same
+Neon `learner_progress` table stores migrated v1 and v2 JSON documents.
 
-## Local development
+Runtime settings:
 
-1. Run `npm install`.
-2. Copy `.dev.vars.example` to `.dev.vars` and add your Neon pooled connection string.
-3. Run `npm run dev`.
+- `DATABASE_URL`: encrypted Cloudflare runtime secret containing the entire current Neon pooled connection string, not just the password.
+- `FRONTEND_URL`: comma-separated allowed origins, currently `http://localhost:5173,https://factoodle.vercel.app`.
 
-## Deploy to Cloudflare Workers
+Build variables and Vercel variables do not configure Worker runtime secrets.
 
-1. Create a free Cloudflare account and run `npx wrangler login`.
-2. Replace `https://YOUR-PROJECT.vercel.app` in `wrangler.jsonc` with the frontend URL.
-3. Run `npx wrangler secret put DATABASE_URL` and paste the Neon pooled connection string.
-4. Run `npm run deploy`.
-5. Copy the resulting `workers.dev` URL into `frontend/.env` as `VITE_API_BASE_URL`.
+| Endpoint | Meaning |
+| --- | --- |
+| `GET /health` | Version and configuration presence; does not query Neon. |
+| `GET /ready` | Queries the actual progress table. |
+| `GET /api/v2/progress/:code` | Returns `{document, progress}`; true absence returns `CODE_NOT_FOUND`. |
+| `PUT /api/v2/progress/:code` | Validates and durably merges progress before acknowledging. |
+| `GET /api/progress/:code` | Legacy aggregate read. |
+| `PUT /api/progress/:code` | `UPDATE_REQUIRED` prevents stale-client overwrites. |
 
-The database password stays in a Cloudflare secret. Never put it in the frontend.
+Responses are `no-store`; driver errors are not exposed. The health path is
+`/health`, not `/heath`. See [the dashboard-only guide](../DEPLOYMENT.md).
