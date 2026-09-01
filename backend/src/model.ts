@@ -1,6 +1,11 @@
 // Canonical sync model. scripts/check-model.mjs verifies the frontend copy.
 export type Operation = 'addition' | 'subtraction' | 'multiplication' | 'division';
-export const LEVELS = [10, 20, 30, 40, 50] as const;
+export const YOUNG_LEVELS = [10, 20, 30, 40, 50] as const;
+export const OLDER_FACT_LEVELS = [10, 20, 30, 40, 50, 100, 144] as const;
+export const LARGE_LEVELS = ['3x1', '3x2', '3x3'] as const;
+export const LEVELS = YOUNG_LEVELS; // Kept for older clients and imports.
+export type PracticeLevel = typeof OLDER_FACT_LEVELS[number] | typeof LARGE_LEVELS[number];
+export const ALL_LEVELS: readonly PracticeLevel[] = [...OLDER_FACT_LEVELS, ...LARGE_LEVELS];
 export const OPERATIONS: Operation[] = ['addition', 'subtraction', 'multiplication', 'division'];
 export type Progress = {
   totalCorrect: number; totalAnswered: number; bestStreak: number;
@@ -31,7 +36,7 @@ export function parseProgress(x: unknown): Progress {
   if (p.totalCorrect > p.totalAnswered || p.bestStreak > p.totalCorrect || p.stars > p.totalCorrect) throw new Error('Invalid totals');
   for (const key of Object.keys(x.byLevel).sort()) {
     const v = x.byLevel[key];
-    if (!/^(addition|subtraction|multiplication|division)-(10|20|30|40|50)$/.test(key) || !record(v) ||
+    if (!/^(addition|subtraction|multiplication|division)-(10|20|30|40|50|100|144|3x1|3x2|3x3)$/.test(key) || !record(v) ||
         !integer(v.correct) || !integer(v.answered) || v.correct > v.answered) throw new Error('Invalid level');
     p.byLevel[key] = { correct: v.correct, answered: v.answered };
   }
@@ -82,9 +87,9 @@ export function totals(doc: Document): Progress {
   }
   return p;
 }
-export function answerDocument(doc: Document, deviceId: string, operation: Operation, level: number,
+export function answerDocument(doc: Document, deviceId: string, operation: Operation, level: PracticeLevel,
   correct: boolean, streak: number, finished: boolean): Document {
-  if (!OPERATIONS.includes(operation) || !(LEVELS as readonly number[]).includes(level) || !integer(streak)) throw new Error('Invalid answer');
+  if (!OPERATIONS.includes(operation) || !ALL_LEVELS.includes(level) || !integer(streak)) throw new Error('Invalid answer');
   const next = structuredClone(doc);
   const device = next.devices[deviceId] ?? { revision: 0, progress: emptyProgress() };
   const p = device.progress;

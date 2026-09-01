@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SyncEngine } from '../frontend/src/sync/engine.ts';
 import { ApiError } from '../frontend/src/sync/api.ts';
+import { createStore } from '../frontend/src/sync/storage.ts';
 import { emptyDocument, mergeDocuments, answerDocument, totals } from '../frontend/src/domain/model.ts';
 import { A, B, CODE, OTHER, deferred, tick, profile } from './helpers.mjs';
 
@@ -70,6 +71,12 @@ test('restore always reads server even when a stale local copy exists', async t 
   await engine.restore(' fct abcd 2345 ');
   assert.equal(engine.getSnapshot().code, CODE); assert.equal(totals(engine.getSnapshot().document).stars, 1);
   assert.equal(p.storage.getItem('factoodle-code'), CODE);
+  const reloadedStore = createStore(p.storage, p.lock);
+  assert.equal(reloadedStore.active(), CODE, 'the recovered code stays active after a browser reload');
+  const reloadedEngine = new SyncEngine(reloadedStore, s.api); t.after(() => reloadedEngine.stop());
+  reloadedEngine.start(); await reloadedEngine.sync();
+  await reloadedEngine.answer('multiplication', '3x2', true, 1, false); await reloadedEngine.sync();
+  assert.equal(totals(s.rows.get(CODE)).totalCorrect, 2, 'future work updates the recovered profile');
 });
 test('failed restore preserves current profile and never creates the mistyped code', async t => {
   const s = server(), { engine, store } = await start(t, s.api);

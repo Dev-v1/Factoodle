@@ -1,4 +1,4 @@
-import { answerDocument, emptyDocument, CODE_PATTERN, normalizeCode, type Document, type Operation } from '../domain/model.ts';
+import { answerDocument, emptyDocument, CODE_PATTERN, normalizeCode, type Document, type Operation, type PracticeLevel } from '../domain/model.ts';
 import { ApiError, type ProgressApi } from './api.ts';
 import { mergeIntoStore, type ProfileStore } from './storage.ts';
 export type SyncState = 'loading' | 'saving' | 'saved' | 'offline' | 'error';
@@ -25,7 +25,7 @@ export class SyncEngine {
   };
   stop = () => { this.stopped = true; clearTimeout(this.timer); }; // Do not abort an in-flight save.
   refresh = () => { if (!this.stopped) void this.sync(); };
-  async answer(operation: Operation, level: number, correct: boolean, streak: number, finished: boolean) {
+  async answer(operation: Operation, level: PracticeLevel, correct: boolean, streak: number, finished: boolean) {
     const code = this.state.code;
     if (!code) throw new Error('Progress is not ready.');
     try {

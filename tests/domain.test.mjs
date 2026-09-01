@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LEVELS, OPERATIONS, CODE_PATTERN, makeCode, normalizeCode, parseDocument, parseProgress, emptyProgress, emptyDocument } from '../backend/src/model.ts';
+import { LEVELS, OLDER_FACT_LEVELS, LARGE_LEVELS, OPERATIONS, CODE_PATTERN, makeCode, normalizeCode, parseDocument, parseProgress, emptyProgress, emptyDocument } from '../backend/src/model.ts';
 import { makeQuestion } from '../frontend/src/domain/math.ts';
 
 let seed = 872364;
@@ -14,6 +14,30 @@ for (const operation of OPERATIONS) for (const limit of LEVELS) {
       assert.ok(Number.isInteger(q.answer) && q.answer >= 0 && q.answer <= limit);
       assert.ok(q.left >= 0 && q.right >= 0);
       if (operation === 'division') assert.ok(q.right > 0);
+    }
+  });
+}
+for (const operation of OPERATIONS) for (const limit of OLDER_FACT_LEVELS) {
+  test(`${operation} older facts through ${limit} stay in range`, () => {
+    for (let i = 0; i < 502; i++) {
+      const q = makeQuestion(operation, limit, random);
+      const actual = operation === 'addition' ? q.left + q.right : operation === 'subtraction' ? q.left - q.right : operation === 'multiplication' ? q.left * q.right : q.left / q.right;
+      assert.equal(q.answer, actual);
+      assert.ok(Number.isSafeInteger(q.answer) && q.answer >= 0 && q.answer <= limit);
+    }
+  });
+}
+for (const operation of OPERATIONS) for (const level of LARGE_LEVELS) {
+  test(`${operation} ${level} creates exact large-number questions`, () => {
+    const digits = Number(level.at(-1));
+    for (const source of [() => 0, () => 1, random]) for (let i = 0; i < 334; i++) {
+      const q = makeQuestion(operation, level, source);
+      const actual = operation === 'addition' ? q.left + q.right : operation === 'subtraction' ? q.left - q.right : operation === 'multiplication' ? q.left * q.right : q.left / q.right;
+      assert.equal(q.answer, actual);
+      assert.ok(Number.isSafeInteger(q.answer) && q.answer >= 0 && q.answer <= 999 * 999);
+      assert.ok(q.left >= 100 && q.left <= 999);
+      assert.equal(String(q.right).length, digits);
+      if (operation === 'division') assert.ok(q.right > 0 && Number.isInteger(q.left / q.right));
     }
   });
 }
@@ -33,6 +57,7 @@ test('codes are random, valid and normalized without changing existing codes', (
 test('invalid or dangerous progress payloads are rejected', () => {
   for (const value of [null, [], {}, 'bad', { ...emptyProgress(), totalAnswered: -1 }, { ...emptyProgress(), totalCorrect: 1 }, { ...emptyProgress(), stars: 1 }, { ...emptyProgress(), sessions: Infinity }, { ...emptyProgress(), bestStreak: 1 }]) assert.throws(() => parseDocument(value));
   assert.throws(() => parseProgress({ ...emptyProgress(), byLevel: { 'addition-60': { correct: 0, answered: 0 } } }));
+  assert.doesNotThrow(() => parseProgress({ ...emptyProgress(), byLevel: { 'multiplication-144': { correct: 1, answered: 1 }, 'division-3x2': { correct: 0, answered: 1 } } }));
   assert.throws(() => parseDocument({ ...emptyDocument(), schemaVersion: 3 }));
   assert.throws(() => parseDocument(JSON.parse('{"schemaVersion":2,"base":{},"devices":{"__proto__":{}}}')));
   assert.equal({}.polluted, undefined);
